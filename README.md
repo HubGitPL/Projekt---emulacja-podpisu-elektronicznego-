@@ -22,9 +22,9 @@ Ten projekt jest licencjonowany na podstawie licencji MIT
 ## Kontakt
 W przypadku pytań lub problemów prosimy o kontakt
 
-## Zespol deweloperski 
-- Jan Krupiniewicz
-- Mateusz Fydrych
+## Zespół deweloperski 
+- Jan Krupiniewicz (https://github.com/JanKrupiniewicz)
+- Mateusz Fydrych (https://github.com/HubGitPL)
 
 
 

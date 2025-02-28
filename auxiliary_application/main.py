@@ -41,6 +41,11 @@ class Window:
         self.key_pair_generator.encrypted_private_key = self.key_pair_generator.encrypt_private_key()
         self.key_pair_generator.save_keys(usb_path)
 
+        messagebox.showinfo("Success", "Keys saved successfully!")
+
+        self.usb_path_entry.delete(0, tk.END)
+        self.pin_entry.delete(0, tk.END)
+
 
 
 class KeyPairGenerator:
@@ -79,39 +84,6 @@ class KeyPairGenerator:
         
         print(f"Private key saved to USB: {private_key_path}")
         print(f"Public key saved locally: {public_key_path}")
-
-    # def display_generator(self):
-    #     key_pair_generator = tk.Tk()
-    #     key_pair_generator.title("RSA Keys Generator")
-    #     key_pair_generator.geometry("450x450")
-    #     key_pair_generator.resizable(False, False)
-
-    #     pin_label = tk.Label(key_pair_generator, text="Enter a secure PIN:")
-    #     pin_label.pack()
-
-    #     pin_entry = tk.Entry(key_pair_generator, show="*")
-    #     pin_entry.pack()
-
-    #     usb_path_label = tk.Label(key_pair_generator, text="Enter USB drive path:")
-    #     usb_path_label.pack()
-
-    #     usb_path_entry = tk.Entry(key_pair_generator)
-    #     usb_path_entry.pack()
-
-    #     submit_button = tk.Button(key_pair_generator, text="Submit", command=lambda: self.on_submit(pin_entry, usb_path_entry))
-    #     submit_button.pack()
-
-    #     key_pair_generator.mainloop()
-
-
-    # def on_submit(self, pin_entry, usb_path_entry):
-    #     pin = pin_entry.get()
-    #     usb_path = usb_path_entry.get()
-
-    #     self.aes_key = self.derive_key_from_pin(pin)
-    #     self.private_key, self.public_key = self.generate_rsa_keys()
-    #     self.encrypted_private_key = self.encrypt_private_key()
-    #     self.save_keys(usb_path)
 
 
 def main():

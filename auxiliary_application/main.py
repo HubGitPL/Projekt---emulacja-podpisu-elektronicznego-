@@ -2,7 +2,6 @@ import os
 import hashlib
 import tkinter as tk
 from tkinter import messagebox
-import getpass
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad

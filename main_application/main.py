@@ -44,6 +44,15 @@ def sign_pdf(pdf_path: str, private_key: RSA.RsaKey, output_path: str):
         writer.write(f)
     print(f"PDF signed successfully: {output_path}")
 
+def try_load_private_key(usb_path, pin):
+    try:
+        private_key = load_private_key(usb_path, pin)
+        print("Private key loaded successfully.")
+        return private_key
+    except Exception as e:
+        print(f"Error loading private key: {e}")
+        return None
+
 # Main function
 def main():
     usb_path = input("Enter USB drive path: ")
@@ -53,12 +62,7 @@ def main():
     
     pin = getpass.getpass("Enter your PIN: ")
     
-    try:
-        private_key = load_private_key(usb_path, pin)
-        print("Private key loaded successfully.")
-    except Exception as e:
-        print(f"Error loading private key: {e}")
-        return
+    private_key = try_load_private_key(usb_path, pin)
     
     pdf_path = input("Enter PDF file path: ")
     if not os.path.exists(pdf_path):

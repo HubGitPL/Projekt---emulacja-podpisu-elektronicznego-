@@ -72,14 +72,15 @@ class KeyPairGenerator:
         return cipher.iv + ciphertext  # Prepend IV for decryption
 
     # Step 4: Save keys to disk
+    def _write_key_to_file(self, file_path: str, data: bytes):
+        with open(file_path, "wb") as f:
+            f.write(data)
     def save_keys(self, usb_path: str):
         private_key_path = os.path.join(usb_path, "private_key.enc")
         public_key_path = "public_key.pem"
-        
-        with open(private_key_path, "wb") as f:
-            f.write(self.encrypted_private_key)
-        with open(public_key_path, "wb") as f:
-            f.write(self.public_key)
+
+        self._write_key_to_file(private_key_path, self.encrypted_private_key)
+        self._write_key_to_file(public_key_path, self.public_key)
         
         print(f"Private key saved to USB: {private_key_path}")
         print(f"Public key saved locally: {public_key_path}")

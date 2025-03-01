@@ -20,8 +20,8 @@ def load_private_key(usb_path: str, pin: str):
     with open(private_key_path, "rb") as f:
         data = f.read()
     
-    iv, ciphertext = data[:16], data[16:]
-    cipher = AES.new(aes_key, AES.MODE_CBC, iv)
+    first16bytes, ciphertext = data[:16], data[16:]
+    cipher = AES.new(aes_key, AES.MODE_CBC, first16bytes)
     private_key = unpad(cipher.decrypt(ciphertext), AES.block_size)
     return RSA.import_key(private_key)
 

@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import messagebox
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad, unpad
+from Crypto.Util.Padding import pad
 
 class Window:
     def __init__(self):

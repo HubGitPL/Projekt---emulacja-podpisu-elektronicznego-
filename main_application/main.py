@@ -2,7 +2,7 @@ import os
 import hashlib
 import getpass
 from PyPDF2 import PdfReader, PdfWriter
-from Crypto.PublicKey import RSA
+from Crypto. m icKey import RSA
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 from Crypto.Signature import pkcs1_15

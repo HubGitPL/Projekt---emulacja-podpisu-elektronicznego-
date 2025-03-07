@@ -5,8 +5,8 @@ from PyPDF2 import PdfReader, PdfWriter
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
+from Crypto.Hash import SHA256
 from Crypto.Signature import pkcs1_15
-
 
 class DocumentSigner:
     def __init__(self):
@@ -37,7 +37,7 @@ class DocumentSigner:
         with open(pdf_path, "rb") as f:
             pdf_data = f.read()
 
-        hash_value = hashlib.sha256(pdf_data).digest()
+        hash_value = SHA256.new(pdf_data)
         signature = pkcs1_15.new(self.private_key).sign(hash_value)
 
         reader = PdfReader(pdf_path)
@@ -55,6 +55,15 @@ class DocumentSigner:
 class MainApplication:
     def __init__(self):
         self.document_signer = DocumentSigner()
+
+    def _load_private_key(self, usb_path, pin):
+        try:
+            self.document_signer.load_private_key(usb_path, pin)
+            print("Private key loaded successfully.")
+            return True
+        except Exception as e:
+            print(f"Error loading private key: {e}")
+            return False
 
     def run(self):
         usb_path = input("Enter USB drive path: ")
@@ -78,18 +87,6 @@ class MainApplication:
             print("Signing process complete.")
         except Exception as e:
             print(f"Error signing PDF: {e}")
-
-    def _load_private_key(self, usb_path, pin):
-        try:
-            self.document_signer.load_private_key(usb_path, pin)
-            print("Private key loaded successfully.")
-            return True
-        except Exception as e:
-            print(f"Error loading private key: {e}")
-            return False
-
-
-
 
 
 def main():

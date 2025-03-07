@@ -56,15 +56,6 @@ class MainApplication:
     def __init__(self):
         self.document_signer = DocumentSigner()
 
-    def _load_private_key(self, usb_path, pin):
-        try:
-            self.document_signer.load_private_key(usb_path, pin)
-            print("Private key loaded successfully.")
-            return True
-        except Exception as e:
-            print(f"Error loading private key: {e}")
-            return False
-
     def run(self):
         usb_path = input("Enter USB drive path: ")
         if not os.path.exists(usb_path):
@@ -87,6 +78,15 @@ class MainApplication:
             print("Signing process complete.")
         except Exception as e:
             print(f"Error signing PDF: {e}")
+
+    def _load_private_key(self, usb_path, pin):
+        try:
+            self.document_signer.load_private_key(usb_path, pin)
+            print("Private key loaded successfully.")
+            return True
+        except Exception as e:
+            print(f"Error loading private key: {e}")
+            return False
 
 
 def main():

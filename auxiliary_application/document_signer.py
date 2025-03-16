@@ -1,4 +1,3 @@
-# document_signer.py
 import os
 import hashlib
 from PyPDF2 import PdfReader, PdfWriter
@@ -24,8 +23,8 @@ class DocumentSigner:
         with open(private_key_path, "rb") as f:
             data = f.read()
 
-        initial_vector, ciphertext = data[:16], data[16:]
-        cipher = AES.new(aes_key, AES.MODE_CBC, initial_vector)
+        iv, ciphertext = data[:16], data[16:]
+        cipher = AES.new(aes_key, AES.MODE_CBC, iv)
         private_key_data = unpad(cipher.decrypt(ciphertext), AES.block_size)
         self.private_key = RSA.import_key(private_key_data)
         return self.private_key

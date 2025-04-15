@@ -7,6 +7,8 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QPushButton,
 from PyQt5.QtCore import Qt
 from crypto import generate_rsa_keypair, encrypt_private_key, save_public_key
 
+sizeX = 500
+sizeY = 300
 class KeyGeneratorWindow(QMainWindow):
     """
     Main window for the key generator application.
@@ -14,7 +16,7 @@ class KeyGeneratorWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("E-Signature Key Generator")
-        self.setMinimumSize(500, 300)
+        self.setMinimumSize(sizeX, sizeY)
         
         # Main widget and layout
         main_widget = QWidget()

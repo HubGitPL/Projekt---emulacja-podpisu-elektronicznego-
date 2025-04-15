@@ -22,69 +22,98 @@ def sign_pdf(input_path, output_path, private_key_pem):
     print(f"Input PDF: {input_path}")
     print(f"Output PDF: {output_path}")
     
-    # Read the PDF
-    with open(input_path, 'rb') as f:
-        pdf_reader = PdfReader(f)
-        pdf_writer = PdfWriter()
+    try:
+        # Read the PDF and calculate initial hash
+        with open(input_path, 'rb') as f:
+            pdf_content = f.read()
+            initial_hash = hashlib.sha256(pdf_content).digest()
         
-        print(f"Original PDF has {len(pdf_reader.pages)} pages")
-        
-        # Copy all pages from the original PDF
-        for page_num in range(len(pdf_reader.pages)):
-            page = pdf_reader.pages[page_num]
-            pdf_writer.add_page(page)
-        
-        # Calculate hash of the PDF content
-        # This needs to match how it's calculated during verification
-        pdf_hash = hashlib.sha256()
-        print("Calculating document hash for signing...")
-        for page_num in range(len(pdf_reader.pages)):
-            page_content = pdf_reader.pages[page_num].extract_text().encode('utf-8')
-            print(f"  Page {page_num+1} content length: {len(page_content)} bytes")
-            pdf_hash.update(page_content)
-        
-        print(f"DEBUG: Signing - PDF hash: {pdf_hash.hexdigest()}")
-        print(f"Hash bytes length: {len(pdf_hash.digest())} bytes")
-        
-        # Sign the hash
-        print("\nGenerating signature...")
-        signature = sign_data(pdf_hash.digest(), private_key_pem)
-        print(f"Signature bytes length: {len(signature)} bytes")
-        print(f"Signature hex: {signature.hex()[:64]}...")
-        
-        # Create a signature page
-        print("\nCreating signature page...")
-        signature_page = create_signature_page(signature)
-        
-        # Add signature page to the PDF
-        signature_reader = PdfReader(signature_page)
-        signature_page = signature_reader.pages[0]
-        pdf_writer.add_page(signature_page)
-        print(f"Added signature page, total pages now: {len(pdf_writer.pages)}")
-        
-        # Add metadata
-        print("\nAdding document metadata...")
-        metadata = {
-            '/PAdES-Signature': 'True',
-            '/SignatureDate': f"{os.path.basename(input_path)}",
-            '/SignatureType': 'RSA-SHA256',
-            '/Author': f"SIGNATURE:{signature.hex()}"  # Store signature in document metadata as well
-        }
-        pdf_writer.add_metadata(metadata)
-        print(f"Added metadata keys: {list(metadata.keys())}")
-        
-        # Save the signed PDF
-        print(f"\nSaving signed PDF to {output_path}...")
-        with open(output_path, 'wb') as output_file:
-            pdf_writer.write(output_file)
-        print("PDF signed successfully")
+        # Read the PDF for processing
+        with open(input_path, 'rb') as f:
+            try:
+                pdf_reader = PdfReader(f)
+            except Exception as e:
+                print(f"Error reading PDF: {str(e)}")
+                raise ValueError("The PDF file appears to be corrupted or invalid. Please try with a different PDF file.")
+            
+            pdf_writer = PdfWriter()
+            
+            print(f"Original PDF has {len(pdf_reader.pages)} pages")
+            
+            # Copy all pages from the original PDF
+            for page_num in range(len(pdf_reader.pages)):
+                try:
+                    page = pdf_reader.pages[page_num]
+                    pdf_writer.add_page(page)
+                except Exception as e:
+                    print(f"Error processing page {page_num + 1}: {str(e)}")
+                    raise ValueError(f"Error processing page {page_num + 1}. The PDF may be corrupted.")
+            
+            # Calculate hash of the PDF content
+            pdf_hash = hashlib.sha256()
+            print("Calculating document hash for signing...")
+            
+            # Create a buffer with the PDF content
+            pdf_buffer = io.BytesIO()
+            pdf_writer.write(pdf_buffer)
+            pdf_content_to_hash = pdf_buffer.getvalue()
+            
+            # Hash the PDF content
+            pdf_hash.update(pdf_content_to_hash)
+            print(f"PDF content length: {len(pdf_content_to_hash)} bytes")
+            
+            # Add the initial hash to the content hash
+            pdf_hash.update(initial_hash)
+            
+            print(f"DEBUG: Signing - PDF hash: {pdf_hash.hexdigest()}")
+            print(f"Hash bytes length: {len(pdf_hash.digest())} bytes")
+            
+            # Sign the hash
+            print("\nGenerating signature...")
+            signature = sign_data(pdf_hash.digest(), private_key_pem)
+            print(f"Signature bytes length: {len(signature)} bytes")
+            print(f"Signature hex: {signature.hex()[:64]}...")
+            
+            # Add metadata
+            print("\nAdding document metadata...")
+            metadata = {
+                '/PAdES-Signature': 'True',
+                '/SignatureDate': f"{os.path.basename(input_path)}",
+                '/SignatureType': 'RSA-SHA256',
+                '/Signature': signature.hex(),  # Store signature in metadata
+                '/InitialHash': initial_hash.hex(),  # Store initial hash in metadata
+                '/Title': pdf_reader.metadata.get('/Title', '') + ' (Digitally Signed)',
+                '/Author': pdf_reader.metadata.get('/Author', ''),
+                '/Subject': pdf_reader.metadata.get('/Subject', ''),
+                '/Keywords': pdf_reader.metadata.get('/Keywords', ''),
+                '/Creator': pdf_reader.metadata.get('/Creator', ''),
+                '/Producer': pdf_reader.metadata.get('/Producer', ''),
+                '/CreationDate': pdf_reader.metadata.get('/CreationDate', ''),
+                '/ModDate': pdf_reader.metadata.get('/ModDate', '')
+            }
+            pdf_writer.add_metadata(metadata)
+            print(f"Added metadata keys: {list(metadata.keys())}")
+            
+            # Save the signed PDF
+            print(f"\nSaving signed PDF to {output_path}...")
+            try:
+                with open(output_path, 'wb') as output_file:
+                    pdf_writer.write(output_file)
+                print("PDF signed successfully")
+            except Exception as e:
+                print(f"Error saving signed PDF: {str(e)}")
+                raise ValueError("Error saving the signed PDF. Please check if you have write permissions to the output location.")
+    except Exception as e:
+        print(f"Error during PDF signing process: {str(e)}")
+        raise ValueError(f"Failed to sign document: {str(e)}")
 
-def create_signature_page(signature):
+def create_signature_page(signature, initial_hash):
     """
     Create a PDF page containing the signature information.
     
     Args:
         signature (bytes): The digital signature
+        initial_hash (bytes): Hash of the original PDF content
         
     Returns:
         io.BytesIO: PDF page as a bytes buffer
@@ -102,24 +131,19 @@ def create_signature_page(signature):
     c.setFont("Helvetica", 12)
     c.drawString(72, height - 100, "This document has been digitally signed.")
     c.drawString(72, height - 120, "Signature Algorithm: RSA-SHA256")
-    c.drawString(72, height - 140, "Signature Hash: " + 
-                 hashlib.sha256(signature).hexdigest()[:16])
-    
-    # Store raw signature as metadata in the PDF
-    signature_hex = signature.hex()
-    print(f"Setting Author metadata with signature (length: {len(signature_hex)} chars)")
-    c.setAuthor("SIGNATURE:" + signature_hex)
+    c.drawString(72, height - 140, "Document Hash: " + initial_hash.hex()[:16])
+    c.drawString(72, height - 160, "Signature Hash: " + hashlib.sha256(signature).hexdigest()[:16])
     
     # Add signature value visualization (first 64 chars of hex representation)
     c.setFont("Courier", 10)
-    c.drawString(72, height - 180, "Signature Value (Visualization):")
+    c.drawString(72, height - 200, "Signature Value (Visualization):")
     
     # Split signature into multiple lines
     line_length = 64
     print("Adding signature visualization to page text:")
-    for i in range(0, min(len(signature_hex), 256), line_length):
-        line_text = signature_hex[i:i+line_length]
-        y_pos = height - 200 - (i // line_length * 15)
+    for i in range(0, min(len(signature.hex()), 256), line_length):
+        line_text = signature.hex()[i:i+line_length]
+        y_pos = height - 220 - (i // line_length * 15)
         c.drawString(72, y_pos, line_text)
         print(f"  Line at y={y_pos}: {line_text[:16]}...")
     
@@ -139,7 +163,8 @@ def verify_pdf_signature(pdf_path, public_key_pem):
         bool: True if signature is valid, False otherwise
     """
     with open(pdf_path, 'rb') as f:
-        pdf_reader = PdfReader(f)
+        pdf_content = f.read()
+        pdf_reader = PdfReader(io.BytesIO(pdf_content))
         
         print("\n=== DETAILED SIGNATURE VERIFICATION DEBUGGING ===")
         print(f"PDF File: {pdf_path}")
@@ -151,83 +176,22 @@ def verify_pdf_signature(pdf_path, public_key_pem):
         else:
             print(f"PAdES-Signature metadata found: {pdf_reader.metadata['/PAdES-Signature']}")
         
-        # Extract the signature from the metadata of the last page
-        if len(pdf_reader.pages) < 2:
-            raise ValueError("Invalid signed PDF format")
+        # Extract the signature from the metadata
+        if '/Signature' not in pdf_reader.metadata:
+            print("ERROR: No signature found in metadata!")
+            raise ValueError("No signature found in document metadata")
         
-        print(f"Total pages in PDF: {len(pdf_reader.pages)}")
+        signature_hex = pdf_reader.metadata['/Signature']
+        print(f"Found signature in metadata: {signature_hex[:16]}...")
         
-        # Get the signature first
-        signature_hex = None
-        print("\nLooking for signature in various locations:")
+        # Get initial hash from metadata
+        if '/InitialHash' not in pdf_reader.metadata:
+            print("ERROR: No initial hash found in metadata!")
+            raise ValueError("No initial hash found in document metadata")
         
-        # 1. Check page Author metadata
-        print("1. Checking last page Resources/Author metadata...")
-        if '/Author' in pdf_reader.pages[-1].get('/Resources', {}):
-            author_info = pdf_reader.pages[-1].get('/Resources', {}).get('/Author', '')
-            print(f"  Found Author in page resources: {author_info[:30]}...")
-            if 'SIGNATURE:' in author_info:
-                signature_hex = author_info.split('SIGNATURE:')[1].strip()
-                print(f"  Found signature in page Author metadata: {signature_hex[:16]}...")
-        else:
-            print("  No Author in page resources found")
-
-        # 2. Check document metadata
-        print("2. Checking document metadata...")
-        if not signature_hex:
-            # Using metadata instead of deprecated getDocumentInfo
-            metadata = pdf_reader.metadata
-            print(f"  Available metadata keys: {list(metadata.keys() if metadata else [])}")
-            if metadata and '/Author' in metadata:
-                print(f"  Author metadata: {metadata['/Author'][:30]}...")
-                if 'SIGNATURE:' in metadata['/Author']:
-                    signature_hex = metadata['/Author'].split('SIGNATURE:')[1].strip()
-                    print(f"  Found signature in document metadata: {signature_hex[:16]}...")
-                else:
-                    print("  No SIGNATURE: marker found in Author metadata")
-            else:
-                print("  No Author metadata found")
-            
-        # 3. Extract from text as fallback
-        print("3. Checking signature page text...")
-        if not signature_hex:
-            # Debug print to see the actual metadata
-            print(f"  Full PDF Metadata: {pdf_reader.metadata}")
-            
-            signature_page_text = pdf_reader.pages[-1].extract_text()
-            print(f"  Signature page text length: {len(signature_page_text)} bytes")
-            
-            # Find the signature value in the text
-            signature_start = signature_page_text.find("Signature Value")
-            if signature_start == -1:
-                print("  No 'Signature Value' text found in the last page")
-                raise ValueError("Signature value not found in the document")
-            else:
-                print(f"  Found 'Signature Value' at position {signature_start}")
-            
-            # Extract the signature hex string
-            lines = signature_page_text[signature_start:].split('\n')
-            signature_hex = ''
-            capturing = False
-            print("  Extracting signature from text lines:")
-            for line in lines:
-                if "Signature Value" in line:
-                    capturing = True
-                    print(f"    Start capturing from: {line}")
-                    continue
-                if capturing and line.strip() and all(c.isalnum() for c in line.strip()):
-                    signature_hex += line.strip()
-                    print(f"    Found hex content: {line.strip()[:16]}... (length: {len(line.strip())})")
-                # Stop when we hit non-hex content
-                elif capturing and line.strip() and not all(c.isalnum() for c in line.strip()):
-                    print(f"    Stopped at non-hex line: {line.strip()[:30]}...")
-                    break
-        
-        if not signature_hex:
-            print("ERROR: Could not extract signature from document!")
-            raise ValueError("Could not extract signature from the document")
-            
-        print(f"\nExtracted signature hex length: {len(signature_hex)} characters")
+        initial_hash_hex = pdf_reader.metadata['/InitialHash']
+        print(f"Found initial hash in metadata: {initial_hash_hex[:16]}...")
+        initial_hash = bytes.fromhex(initial_hash_hex)
         
         try:
             # Convert hex to bytes
@@ -237,35 +201,32 @@ def verify_pdf_signature(pdf_path, public_key_pem):
             print(f"Signature first 16 bytes: {signature.hex()[:32]}")
             
             # Now calculate the hash of the content
-            # IMPORTANT: This must exactly match how it's calculated during signing
-            # Calculate hash of the PDF content (excluding signature page)
-            print("\nCalculating document hash (excluding signature page)...")
+            print("\nCalculating document hash...")
             pdf_hash = hashlib.sha256()
             
-            # During signing, we hash ALL pages of the ORIGINAL document.
-            # Here we need to hash all pages EXCEPT the signature page that was added.
-            total_pages = len(pdf_reader.pages)
-            for page_num in range(total_pages - 1):  # Skip the last page (signature page)
-                print(f"  Processing page {page_num+1}/{total_pages-1}...")
-                page_content = pdf_reader.pages[page_num].extract_text().encode('utf-8')
-                print(f"  Page {page_num+1} content length: {len(page_content)} bytes")
-                # Show the first few bytes of each page for debugging
-                if len(page_content) > 0:
-                    print(f"  First few bytes: {page_content[:20]}")
-                pdf_hash.update(page_content)
-                
+            # Create a new PDF writer to get the content without metadata
+            pdf_writer = PdfWriter()
+            
+            # Copy all pages from the original PDF
+            for page in pdf_reader.pages:
+                pdf_writer.add_page(page)
+            
+            # Get the PDF content without metadata
+            pdf_buffer = io.BytesIO()
+            pdf_writer.write(pdf_buffer)
+            pdf_content_to_hash = pdf_buffer.getvalue()
+            
+            # Hash the PDF content
+            pdf_hash.update(pdf_content_to_hash)
+            print(f"PDF content length: {len(pdf_content_to_hash)} bytes")
+            
+            # Add the initial hash to the content hash
+            pdf_hash.update(initial_hash)
+            print("Added initial hash to content hash")
+            
             print(f"Final hash digest: {pdf_hash.hexdigest()}")
             print(f"Hash bytes length: {len(pdf_hash.digest())} bytes")
             
-            # Check the public key
-            print("\nVerifying with public key...")
-            from cryptography.hazmat.primitives import serialization
-            try:
-                public_key = serialization.load_pem_public_key(public_key_pem)
-                print("Public key loaded successfully")
-            except Exception as e:
-                print(f"ERROR loading public key: {str(e)}")
-                
             # Verify the signature
             print("\nAttempting signature verification...")
             print(f"Data hash to verify: {pdf_hash.hexdigest()}")
@@ -273,7 +234,9 @@ def verify_pdf_signature(pdf_path, public_key_pem):
             
             result = verify_signature(pdf_hash.digest(), signature, public_key_pem)
             print(f"DEBUG: Verification result: {result}")
+            
             return result
+            
         except Exception as e:
             print(f"DEBUG: Verification exception: {str(e)}")
             raise ValueError(f"Failed to verify signature: {str(e)}") 

@@ -21,7 +21,7 @@ def derive_key_from_pin(pin, salt):
     key = hashlib.pbkdf2_hmac('sha256', pin.encode(), salt, 100000, 32)
     return key
 
-def decrypt_private_key(encrypted_data, pin):
+def decrypt_private_key(encrypted_data, pin) -> bytes:
     """
     Decrypt the private key using AES-256 with a key derived from the PIN.
     

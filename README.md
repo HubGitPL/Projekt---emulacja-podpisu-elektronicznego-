@@ -102,6 +102,7 @@ project/
 ├── key_generator/
 │   ├── main.py
 │   ├── gui.py
+│   ├── usb_detector.py
 │   └── crypto.py
 ├── signature_app/
 │   ├── main.py
